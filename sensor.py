@@ -8,6 +8,7 @@ See the file 'LICENSE' for copying permission
 import csv
 import datetime
 import optparse
+import glob
 import os
 import re
 import socket
@@ -36,6 +37,7 @@ from core.settings import NAME
 from core.settings import read_config
 from core.settings import SENSOR_CONFIG_FILE
 from core.settings import SNAP_LEN
+from core.settings import SYSTEM_LOG_DIRECTORY
 from core.settings import VERSION
 
 try:
@@ -54,12 +56,25 @@ _traffic = {}
 LAST_FILENAME = None
 LAST_WRITE = None
 
+def _get_auth_whitelist():
+    retval = set()
+    for filename in glob.glob(os.path.join(SYSTEM_LOG_DIRECTORY, "auth.log*")):
+        with open(filename, "rb") as f:
+            for line in f:
+                if "]: Accepted" in line:
+                    match = re.search("from ([\d.]+) port")
+                    if match:
+                        retval.add(match.group(1))
+
+    return retval
+
 def _log_write(force=False, filename=None):
     global LAST_FILENAME
     global LAST_WRITE
 
     current = time.time()
     filename = filename or os.path.join(LOG_DIRECTORY, "%s.csv" % datetime.datetime.utcnow().strftime(DATE_FORMAT))
+    whitelist = _get_auth_whitelist()
 
     if LAST_WRITE is None:
         LAST_WRITE = current
@@ -79,6 +94,8 @@ def _log_write(force=False, filename=None):
             for dst_key in _traffic:
                 proto, dst_ip, dst_port = dst_key.split(":")
                 for src_ip in _traffic[dst_key]:
+                    if src_ip in whitelist:
+                        continue
                     stat_key = "%s:%s" % (dst_key, src_ip)
                     first_seen, last_seen, count = _auxiliary[stat_key]
                     results.append((proto, src_ip, dst_ip, dst_port, first_seen, last_seen, count))

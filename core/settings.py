@@ -16,7 +16,7 @@ from core.attribdict import AttribDict
 config = AttribDict()
 
 NAME = "ipnoise"
-VERSION = "0.1"
+VERSION = "0.1.1"
 SNAP_LEN = 100
 IPPROTO = 8
 ETH_LENGTH = 14
