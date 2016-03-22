@@ -144,7 +144,7 @@ def _process_packet(packet, sec, usec):
             if proto is None or any(_ in (config.IGNORE_ADDRESSES or "") for _ in (src_ip, dst_ip)):
                 return
 
-            if dst_ip not in HOST_IPS:
+            if HOST_IPS and dst_ip not in HOST_IPS:
                 return
 
             # only process SYN packets
@@ -228,7 +228,7 @@ def init_sensor():
 
     items = []
 
-    for cmd, regex in (("ifconfig", r"inet addr:([\d.]+) .*Mask:([\d.]+)"), ("ipconfig", r"IPv4 Address[^\n]+([\d.]+)\s+Subnet Mask[^\n]+([\d.]+)")):
+    for cmd, regex in (("/sbin/ifconfig", r"inet addr:([\d.]+) .*Mask:([\d.]+)"), ("ipconfig", r"IPv4 Address[^\n]+([\d.]+)\s+Subnet Mask[^\n]+([\d.]+)")):
         try:
             items = re.findall(regex, subprocess.check_output(cmd))
             break
