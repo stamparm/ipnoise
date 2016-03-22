@@ -57,15 +57,23 @@ _traffic = {}
 LAST_FILENAME = None
 LAST_WRITE = None
 
-def _get_auth_whitelist():
+def _get_sys_whitelist():
     retval = set()
     for filename in glob.glob(os.path.join(SYSTEM_LOG_DIRECTORY, "auth.log*")):
         with open(filename, "rb") as f:
             for line in f:
                 if "]: Accepted" in line:
-                    match = re.search("from ([\d.]+) port", line)
+                    match = re.search(r"from ([\d.]+) port", line)
                     if match:
                         retval.add(match.group(1))
+
+    _ = "/etc/resolv.conf"
+    if os.path.isfile(_):
+        with open(_, "rb") as f:
+            for line in f:
+                match = re.search(r"nameserver\s+([\d.]+)", line)
+                if match:
+                    retval.add(match.group(1))
 
     return retval
 
@@ -75,7 +83,7 @@ def _log_write(force=False, filename=None):
 
     current = time.time()
     filename = filename or os.path.join(LOG_DIRECTORY, "%s.csv" % datetime.datetime.utcnow().strftime(DATE_FORMAT))
-    whitelist = _get_auth_whitelist()
+    whitelist = _get_sys_whitelist()
 
     if LAST_WRITE is None:
         LAST_WRITE = current
