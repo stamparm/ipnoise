@@ -62,7 +62,7 @@ def _get_auth_whitelist():
         with open(filename, "rb") as f:
             for line in f:
                 if "]: Accepted" in line:
-                    match = re.search("from ([\d.]+) port")
+                    match = re.search("from ([\d.]+) port", line)
                     if match:
                         retval.add(match.group(1))
 
