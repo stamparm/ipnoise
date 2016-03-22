@@ -29,6 +29,7 @@ from core.settings import CSV_HEADER
 from core.settings import DATE_FORMAT
 from core.settings import DEFAULT_LOG_PERMISSIONS
 from core.settings import ETH_LENGTH
+from core.settings import HOST_IPS
 from core.settings import IPPROTO
 from core.settings import IPPROTO_LUT
 from core.settings import LOCAL_ADDRESSES
@@ -143,6 +144,9 @@ def _process_packet(packet, sec, usec):
             if proto is None or any(_ in (config.IGNORE_ADDRESSES or "") for _ in (src_ip, dst_ip)):
                 return
 
+            if dst_ip not in HOST_IPS:
+                return
+
             # only process SYN packets
             if protocol == socket.IPPROTO_TCP:      # TCP
                 if local_src:
@@ -233,6 +237,7 @@ def init_sensor():
 
     for ip, mask in items:
         LOCAL_ADDRESSES.append((addr_to_int(ip) & addr_to_int(mask), addr_to_int(mask)))
+        HOST_IPS.add(ip)
 
     try:
         if not os.path.isdir(LOG_DIRECTORY):

@@ -16,12 +16,13 @@ from core.attribdict import AttribDict
 config = AttribDict()
 
 NAME = "ipnoise"
-VERSION = "0.1.2"
+VERSION = "0.1.3"
 SNAP_LEN = 100
 IPPROTO = 8
 ETH_LENGTH = 14
 IPPROTO_LUT = dict(((getattr(socket, _), _.replace("IPPROTO_", "")) for _ in dir(socket) if _.startswith("IPPROTO_")))
 LOCAL_ADDRESSES = []
+HOST_IPS = set()
 DATE_FORMAT = "%Y-%m-%d"
 TIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 SYSTEM_LOG_DIRECTORY = "/var/log" if not subprocess.mswindows else "C:\\Windows\\Logs"
