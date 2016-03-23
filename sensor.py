@@ -29,10 +29,10 @@ from core.settings import CSV_HEADER
 from core.settings import DATE_FORMAT
 from core.settings import DEFAULT_LOG_PERMISSIONS
 from core.settings import ETH_LENGTH
-from core.settings import HOST_IPS
+from core.settings import HOST_ADDRESSES
 from core.settings import IPPROTO
 from core.settings import IPPROTO_LUT
-from core.settings import LOCAL_ADDRESSES
+from core.settings import LOCAL_NETWORKS
 from core.settings import LOG_DIRECTORY
 from core.settings import NAME
 from core.settings import read_config
@@ -144,7 +144,7 @@ def _process_packet(packet, sec, usec):
             proto = IPPROTO_LUT.get(protocol)
 
             local_src = False
-            for prefix, mask in LOCAL_ADDRESSES:
+            for prefix, mask in LOCAL_NETWORKS:
                 if addr_to_int(src_ip) & mask == prefix:
                     local_src = True
                     break
@@ -152,7 +152,7 @@ def _process_packet(packet, sec, usec):
             if proto is None or any(_ in (config.IGNORE_ADDRESSES or "") for _ in (src_ip, dst_ip)):
                 return
 
-            if HOST_IPS and dst_ip not in HOST_IPS:
+            if HOST_ADDRESSES and dst_ip not in HOST_ADDRESSES:
                 return
 
             # only process SYN packets
@@ -189,6 +189,8 @@ def _process_packet(packet, sec, usec):
                         return
 
                     src_port, dst_port = struct.unpack("!HH", _)
+                    if src_port < 1024 and dst_port > 1024 and dst_ip in HOST_ADDRESSES:        # potential reflection/amplification (junk) responses (e.g. service response to fake src_ip)
+                        return
                 else:                               # non-TCP/UDP (e.g. ICMP)
                     src_port, dst_port = '-', '-'
 
@@ -244,8 +246,15 @@ def init_sensor():
             pass
 
     for ip, mask in items:
-        LOCAL_ADDRESSES.append((addr_to_int(ip) & addr_to_int(mask), addr_to_int(mask)))
-        HOST_IPS.add(ip)
+        LOCAL_NETWORKS.append((addr_to_int(ip) & addr_to_int(mask), addr_to_int(mask)))
+        HOST_ADDRESSES.add(ip)
+
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("google.com", 0))
+        HOST_ADDRESSES.add(s.getsockname()[0])
+    except:
+        pass
 
     try:
         if not os.path.isdir(LOG_DIRECTORY):
