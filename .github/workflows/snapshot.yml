@@ -1,0 +1,49 @@
+name: daily snapshot
+
+# 23:50 UTC, just before the day closes, so daily/<date>.txt holds the window
+# that (near enough) matches the date it is named for. GitHub can delay a
+# scheduled run under load; a late run still lands on the same date.
+#
+# The fetch runs here rather than being pushed from the aggregator on purpose:
+# nothing outside GitHub needs a credential that can write to this repository.
+on:
+  schedule:
+    - cron: '50 23 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch the day's active set
+        run: |
+          set -euo pipefail
+          day=$(date -u +%F)
+          mkdir -p daily
+          curl -fsSL --compressed --retry 3 --retry-delay 15 \
+            https://ipnoise.sekuripy.hr/1d.txt -o "daily/$day.txt"
+
+          # Never commit a truncated or empty fetch over a good snapshot: a
+          # bad day of data is worse than a missing one, since anything
+          # committed here can be consumed by someone later.
+          entries=$(grep -cvE '^\s*(#|$)' "daily/$day.txt" || true)
+          echo "$entries entries"
+          if [ "$entries" -lt 50 ]; then
+            echo "::error::only $entries entries, refusing to commit"
+            exit 1
+          fi
+
+      - name: Commit
+        run: |
+          set -euo pipefail
+          day=$(date -u +%F)
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "daily/$day.txt"
+          git diff --quiet --cached || git commit -m "Snapshot $day"
+          git push
