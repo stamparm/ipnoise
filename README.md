@@ -13,9 +13,9 @@ published.
 
 ## Files
 
-`daily/YYYY-MM-DD.txt` — the addresses active on that day (UTC), captured as the
-day closes. Plain text, one IPv4 or IPv6 address per line, `#` comments in the
-header.
+`daily/YYYY-MM-DD.txt` — the addresses active on that day (UTC), captured just
+after the day ends. Plain text, one IPv4 or IPv6 address per line, `#` comments
+in the header.
 
 ```
 curl -fsSL https://raw.githubusercontent.com/stamparm/ipnoise/master/daily/2026-09-07.txt | grep -v '^#'

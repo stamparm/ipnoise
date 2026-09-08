@@ -1,14 +1,20 @@
 name: daily snapshot
 
-# 23:50 UTC, just before the day closes, so daily/<date>.txt holds the window
-# that (near enough) matches the date it is named for. GitHub can delay a
-# scheduled run under load; a late run still lands on the same date.
+# Runs shortly AFTER the UTC day closes and archives the day that just
+# ended, so a day's file always holds that day's data.
 #
-# The fetch runs here rather than being pushed from the aggregator on purpose:
-# nothing outside GitHub needs a credential that can write to this repository.
+# The date comes from "yesterday", never from when the run happens to fire.
+# GitHub delays scheduled runs under load -- the first one here was 95
+# minutes late -- and an earlier version scheduled at 23:50 UTC and named
+# after the current date produced a file named for the following day. Naming
+# backwards gives ~22 hours of slack instead of 10 minutes.
+#
+# The fetch runs here rather than being pushed from the aggregator on
+# purpose: nothing outside GitHub needs a credential that can write to this
+# repository.
 on:
   schedule:
-    - cron: '50 23 * * *'
+    - cron: '20 0 * * *'
   workflow_dispatch:
 
 permissions:
@@ -20,30 +26,36 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Fetch the day's active set
+      - name: Archive the day that just ended
         run: |
           set -euo pipefail
-          day=$(date -u +%F)
+          day=$(date -u -d yesterday +%F)
+
+          # A captured day is final. Makes a manual re-run harmless, and
+          # means a duplicate or very late run can never overwrite a good
+          # snapshot with a window that has drifted into the next day.
+          if [ -f "daily/$day.txt" ]; then
+            echo "$day already archived, nothing to do"
+            exit 0
+          fi
+
           mkdir -p daily
           curl -fsSL --compressed --retry 3 --retry-delay 15 \
             https://ipnoise.sekuripy.hr/1d.txt -o "daily/$day.txt"
 
-          # Never commit a truncated or empty fetch over a good snapshot: a
-          # bad day of data is worse than a missing one, since anything
-          # committed here can be consumed by someone later.
+          # Never commit a truncated or empty fetch: a bad day of data is
+          # worse than a missing one, since anything committed here can be
+          # consumed by someone months later.
           entries=$(grep -cvE '^\s*(#|$)' "daily/$day.txt" || true)
-          echo "$entries entries"
+          echo "$entries entries for $day"
           if [ "$entries" -lt 50 ]; then
             echo "::error::only $entries entries, refusing to commit"
+            rm -f "daily/$day.txt"
             exit 1
           fi
 
-      - name: Commit
-        run: |
-          set -euo pipefail
-          day=$(date -u +%F)
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add "daily/$day.txt"
-          git diff --quiet --cached || git commit -m "Snapshot $day"
+          git commit -m "Snapshot $day"
           git push
