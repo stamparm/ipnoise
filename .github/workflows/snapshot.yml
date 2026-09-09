@@ -12,9 +12,16 @@ name: daily snapshot
 # The fetch runs here rather than being pushed from the aggregator on
 # purpose: nothing outside GitHub needs a credential that can write to this
 # repository.
+# Two attempts, not one. GitHub delays scheduled runs under load and drops
+# them outright often enough to matter: the 00:20 run on 2026-09-09 never
+# fired at all, and the one before it was 95 minutes late. Both times are
+# deliberately odd minutes away from the top of the hour, which is the
+# worst-congested slot. The second attempt is a no-op when the first
+# worked, because a day already archived is never rewritten.
 on:
   schedule:
-    - cron: '20 0 * * *'
+    - cron: '37 0 * * *'
+    - cron: '13 2 * * *'
   workflow_dispatch:
 
 permissions:
